@@ -4,8 +4,6 @@ const { Routes } = require("discord-api-types/v9");
 const { REST } = require("@discordjs/rest");
 const anticrash = require("./anticrash");
 
-require("dotenv/config");
-
 const client = new Client({
   intents: [
     Intents.FLAGS.GUILDS,
