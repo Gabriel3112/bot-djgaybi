@@ -6,13 +6,16 @@ module.exports = {
     .setName("stop")
     .setDescription("Stop and disconnect bot on channel."),
   async execute(interaction) {
-    const connection = await getVoiceConnection(interaction.guild.id);
+    const { client, guild } = interaction;
+    const player = client.manager.get(guild.id);
 
     try {
-      queue.delete(interaction.guild.id);
-      connection.destroy();
-      interaction.reply("Vou sair que estou com sono, okay ?");
-    } catch {
+      player.queue.clear();
+      player.destroy();
+      await interaction.reply(
+        `Pediu para parar parou! Quem pediu foi \` ${interaction.user.username}#${interaction.user.discriminator}\`.`
+      );
+    } catch (e) {
       interaction.reply("Deu problema aqui pae.");
     }
   },

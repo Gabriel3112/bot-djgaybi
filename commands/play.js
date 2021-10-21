@@ -1,17 +1,4 @@
 const { SlashCommandBuilder } = require("@discordjs/builders");
-const {
-  joinVoiceChannel,
-  createAudioResource,
-  createAudioPlayer,
-  VoiceConnectionDisconnectReason,
-  VoiceConnectionStatus,
-  entersState,
-} = require("@discordjs/voice");
-const ytdl = require("ytdl-core");
-const ytSearch = require("yt-search");
-const { queue, queueConstructor } = require("../util/queue");
-const audioPlayer = require("../util/player");
-const player = createAudioPlayer();
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -25,89 +12,54 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    const { channel } = interaction.member.voice;
+    const { client, member } = interaction;
+    const { channel } = member.voice;
 
     if (!channel)
-      return await interaction.reply({
+      return interaction.reply({
         content: "Entre em um canal de voz primeiro.",
       });
 
+    const player = client.manager.create({
+      guild: interaction.guild.id,
+      voiceChannel: interaction.member.voice.channel.id,
+      textChannel: interaction.channel.id,
+    });
+
     const search = interaction.options.getString("music");
 
-    const serverQueue = queue.get(interaction.guild.id);
+    let result;
+    try {
+      result = await client.manager.search(search, interaction.user);
 
-    let song = {};
-    song = await videoFinder(search, interaction);
-    if (!serverQueue) {
-      queue.set(interaction.guild.id, queueConstructor);
-      queueConstructor.channel = channel;
-      queueConstructor.textChannel = interaction.channel;
-      queueConstructor.songs.push(song);
-      await interaction.reply({
-        content: `${song.title} => adicionada a lista.`,
-      });
-      queueConstructor.player = player;
-      try {
-        const connection = await voiceState(channel);
-        connection.subscribe(player);
-        queueConstructor.connection = connection;
-
-        audioPlayer(interaction.guild, queueConstructor.songs[0]);
-      } catch (error) {
-        queue.delete(interaction.guild.id);
-        await interaction.reply({ content: "Erro ao connectar!" });
-        throw error;
+      switch (result.loadType) {
+        case "NO_MATCHES":
+          interaction.reply({
+            content: `Eu não achei esse diacho \`${search}\`.`,
+          });
+        case "PLAYLIST_LOADED":
+          result.tracks.map((m) => player.queue.add(m));
+          interaction.reply({
+            content: `Acabei de colocar a playlist \`${result.playlist.name}\` na fila.`,
+          });
+        case "SEARCH_RESULT":
+          player.queue.add(result.tracks[0]);
+          interaction.reply({
+            content: `Acabei de colocar a música \`${result.tracks[0].title}\` na fila.`,
+          });
       }
-    } else {
-      serverQueue.songs.push(song);
-      await interaction.reply({
-        content: `${song.title} => adicionada a lista.`,
+    } catch (err) {
+      console.log(err);
+    }
+
+    if (player.state !== "CONNECTED") {
+      player.setEQ({ band: 2, gain: 0.1 });
+      player.connect();
+      interaction.reply({
+        content: `Tá tocando \`${result.tracks[0].title}\` e quem pediu foi \`${interaction.user.username}#${interaction.user.discriminator}\`.`,
       });
     }
+
+    if (!player.playing) player.play();
   },
-};
-
-const voiceState = async (channel) => {
-  const connection = await joinVoiceChannel({
-    channelId: channel.id,
-    guildId: channel.guild.id,
-    adapterCreator: channel.guild.voiceAdapterCreator,
-  });
-
-  connection.on(
-    VoiceConnectionStatus.Disconnected,
-    async (oldState, newState) => {
-      if (
-        newState.reason === VoiceConnectionDisconnectReason.WebSocketClose &&
-        newState.closeCode === 4014
-      ) {
-        try {
-          await Promise.race([
-            entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
-          ]);
-        } catch {
-          connection.destroy();
-        }
-      }
-    }
-  );
-  return connection;
-};
-
-const videoFinder = async (query, interaction) => {
-  if (ytdl.validateURL(query)) {
-    const songInfo = await ytdl.getInfo(query);
-    return {
-      title: songInfo.videoDetails.title,
-      url: songInfo.videoDetails.video_url,
-    };
-  } else {
-    const search = await ytSearch(query);
-    const video = search.videos.length > 1 ? search.videos[0] : null;
-    if (video) {
-      return { title: video.title, url: video.url };
-    } else {
-      await interaction.reply({ content: "Música não encontrada!" });
-    }
-  }
 };

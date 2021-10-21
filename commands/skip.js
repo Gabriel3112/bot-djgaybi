@@ -1,20 +1,17 @@
 const { SlashCommandBuilder } = require("@discordjs/builders");
-const { queue } = require("../util/queue");
-const audioPlayer = require("../util/player");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("skip")
     .setDescription("skip now music"),
   async execute(interaction) {
-    const { songs } = await queue.get(interaction.guild.id);
-    console.log(songs);
-    try {
-      songs.shift();
-      audioPlayer(interaction.guild, songs[0]);
-      await interaction.reply({ content: "Já troquei de música, eu hein" });
-    } catch (error) {
-      console.log(error);
-    }
+    const { client } = interaction;
+
+    const player = client.manager.get(interaction.guild.id);
+    player.stop();
+
+    return interaction.reply({
+      content: `Quem pulou a Música foi \`${interaction.user.username}#${interaction.user.discriminator}\`.`,
+    });
   },
 };

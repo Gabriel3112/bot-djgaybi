@@ -7,7 +7,8 @@
     "node": "16.x"
   },
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "web": "npm start"
   },
   "author": "Gabriel Lima",
   "license": "ISC",
@@ -16,12 +17,17 @@
     "@discordjs/opus": "^0.6.0",
     "@discordjs/rest": "0.1.0-canary.0",
     "@discordjs/voice": "^0.6.0",
+    "bufferutil": "^4.0.5",
     "discord-api-types": "^0.23.1",
-    "discord.js": "^13.1.0",
+    "discord-ytdl-core": "^5.0.4",
+    "discord.js": "^13.2.0",
     "dotenv": "^10.0.0",
+    "erela.js": "^2.3.3",
     "libsodium-wrappers": "^0.7.9",
+    "mongoose": "^6.0.11",
+    "reconlx": "^2.4.6",
     "yt-search": "^2.10.1",
-    "ytdl-core": "^4.9.1"
+    "ytdl-core": "^4.8.2"
   },
   "devDependencies": {
     "@colyseus/loadtest": "^0.14.7"

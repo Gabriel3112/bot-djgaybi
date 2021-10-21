@@ -1,37 +1,41 @@
 const { createAudioResource, demuxProbe } = require("@discordjs/voice");
-const ytdl = require("ytdl-core");
+const ytdl = require("discord-ytdl-core");
 const { queue } = require("../util/queue");
 
 const audioPlayer = async (guild, song) => {
   const { player, songs, connection, textChannel } = queue.get(guild.id);
+  try {
+    if (!song) {
+      connection.destroy();
+      queue.delete(guild.id);
+      return;
+    }
+    const stream = await ytdl(song.url, {
+      filter: "audioonly",
+      opusEncoded: true,
+      encoderArgs: ["-af", "bass=g=12,dynaudnorm=f=200"],
+    });
 
-  if (!song) {
-    connection.destroy();
-    queue.delete(guild.id);
-    return;
-  }
-  const stream = await ytdl(song.url, {
-    filter: "audio",
-    quality: "highest",
-  });
+    if (!stream) return await textChannel.send({ content: `Deu pau aqui pae` });
 
-  if (!stream) return await textChannel.send({ content: `Deu pau aqui pae` });
+    const resource = await createAudioResource(stream, { inputType: "opus" });
+    stream.on("finish", () => {
+      console.log(songs);
+      songs.shift();
+      console.log(songs);
+      audioPlayer(guild, songs[0]);
+    });
 
-  const resource = await probeAndCreateResource(stream);
-  /*player.on("finish", () => {
-    
-  });*/
+    stream.on("error", (error) => {
+      audioPlayer(guild, songs[0]);
+    });
 
-  player.play(resource);
-  player.on("finish", () => {
+    player.play(resource);
+  } catch (err) {
+    console.log("error, skip music!");
     songs.shift();
     audioPlayer(guild, songs[0]);
-  });
-};
-
-const probeAndCreateResource = async (readableStream) => {
-  const { stream, type } = await demuxProbe(readableStream);
-  return createAudioResource(stream, { inputType: type });
+  }
 };
 
 module.exports = audioPlayer;
